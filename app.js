@@ -210,7 +210,6 @@ ${langDir}`;
         messages: [{ role: 'system', content: sys }, { role: 'user', content: user }],
         referrer: REFERRER,
         temperature: 0.5,
-        response_format: { type: 'json_object' }, // hint, model may ignore
       }),
     });
     if (!r.ok) throw new Error('mimo_http_' + r.status);
@@ -250,28 +249,60 @@ ${langDir}`;
 }
 
 function parseCardsJson(raw) {
-  // Try direct JSON parse
-  let arr = null;
-  try {
-    const parsed = JSON.parse(raw);
-    arr = Array.isArray(parsed) ? parsed : (parsed.cards || parsed.flashcards || null);
-  } catch { /* try to extract */ }
+  // Step 1: strip markdown code fences if present
+  let text = raw.trim()
+    .replace(/^```(?:json)?\s*\n?/i, '')
+    .replace(/\n?```\s*$/i, '');
 
-  if (!arr) {
-    // Extract first [...] block
-    const m = raw.match(/\[[\s\S]*\]/);
-    if (m) {
-      try { arr = JSON.parse(m[0]); } catch { /* keep null */ }
+  // Step 2: try direct JSON parse
+  let parsed = null;
+  try { parsed = JSON.parse(text); } catch { /* try block extraction */ }
+
+  // Step 3: extract first JSON-looking block (object or array)
+  if (!parsed) {
+    const arrMatch = text.match(/\[[\s\S]*\]/);
+    const objMatch = text.match(/\{[\s\S]*\}/);
+    const candidate = arrMatch?.[0] || objMatch?.[0];
+    if (candidate) {
+      try { parsed = JSON.parse(candidate); } catch { /* keep null */ }
+    }
+  }
+  if (!parsed) return [];
+
+  // Step 4: unwrap object → array. Models love to wrap in {"flashcards":[...]} etc.
+  let arr = null;
+  if (Array.isArray(parsed)) {
+    arr = parsed;
+  } else if (typeof parsed === 'object') {
+    // Try common wrapper keys, then any array-typed value
+    const wrappers = ['cards', 'flashcards', 'data', 'items', 'result', 'results', 'output'];
+    for (const k of wrappers) {
+      if (Array.isArray(parsed[k])) { arr = parsed[k]; break; }
+    }
+    if (!arr) {
+      for (const v of Object.values(parsed)) {
+        if (Array.isArray(v)) { arr = v; break; }
+      }
     }
   }
   if (!Array.isArray(arr)) return [];
 
+  // Step 5: normalize each card. Tolerant to field name variations.
+  const FRONT_KEYS = ['front', 'question', 'q', 'prompt', 'term', 'cue'];
+  const BACK_KEYS  = ['back', 'answer', 'a', 'response', 'definition', 'explanation'];
+
   return arr
-    .filter(o => o && typeof o === 'object' && o.front && o.back)
-    .map(o => ({
-      front: String(o.front).replace(/\s+/g, ' ').trim(),
-      back: String(o.back).replace(/\s+/g, ' ').trim(),
-    }));
+    .map(o => {
+      if (!o || typeof o !== 'object') return null;
+      const front = FRONT_KEYS.map(k => o[k]).find(v => typeof v === 'string' && v.trim());
+      const back  = BACK_KEYS.map(k => o[k]).find(v => typeof v === 'string' && v.trim());
+      if (!front || !back) return null;
+      return {
+        front: String(front).replace(/\s+/g, ' ').trim(),
+        back:  String(back).replace(/\s+/g, ' ').trim(),
+      };
+    })
+    .filter(Boolean);
 }
 
 // ---------- AGENT 4 — SCHEDULER (SM-2 init) ----------
