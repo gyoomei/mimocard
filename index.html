@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="MimoCard — AI flashcard generator. Paste any URL or article, get spaced-repetition study cards. SM-2 scheduler. Anki export. Free. No API key.">
+<meta name="theme-color" content="#08090f">
+<title>MimoCard · AI Flashcard Generator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500&family=Playfair+Display:ital,wght@1,500&display=swap" rel="stylesheet">
+<style>
+  *,*::before,*::after{box-sizing:border-box}
+  :root{
+    --bg:#08090f; --bg2:#0e1018; --panel:#13151f; --panel2:#191b27;
+    --text:#f3f1ea; --muted:#9498aa; --line:rgba(255,255,255,.08); --line2:rgba(255,255,255,.16);
+    --acc:#8b7cff; --acc2:#a99aff; --warm:#ff9966; --good:#5fd58a; --warn:#ffba5e; --bad:#ff7a8a;
+    --grad-edu:linear-gradient(135deg,#8b7cff 0%,#5b8def 35%,#5fd5b8 70%,#a4e36a 100%);
+    --grad-warm:linear-gradient(135deg,#ff9966 0%,#ff6f88 50%,#a35aff 100%);
+    --shadow:0 20px 60px -20px rgba(139,124,255,.18), 0 8px 30px -10px rgba(0,0,0,.5);
+  }
+  [data-theme="light"]{
+    --bg:#fbf9f4; --bg2:#f3eede; --panel:#ffffff; --panel2:#f7f1e0;
+    --text:#161220; --muted:#5e5870; --line:rgba(0,0,0,.10); --line2:rgba(0,0,0,.20);
+    --acc:#5b46d6; --acc2:#3a26b5; --warm:#a35020;
+    --shadow:0 20px 60px -20px rgba(91,70,214,.18), 0 8px 30px -10px rgba(0,0,0,.10);
+  }
+  html{color-scheme:dark light}
+  body{
+    margin:0; min-height:100dvh; font-family:Inter,system-ui,sans-serif;
+    background:var(--bg); color:var(--text);
+    -webkit-font-smoothing:antialiased; overflow-x:hidden;
+  }
+  body::before{
+    content:""; position:fixed; inset:0; z-index:-1; pointer-events:none;
+    background:
+      radial-gradient(900px 600px at 12% 8%,rgba(139,124,255,.16),transparent 65%),
+      radial-gradient(700px 500px at 88% 20%,rgba(95,213,184,.12),transparent 65%),
+      radial-gradient(600px 400px at 60% 92%,rgba(255,153,102,.10),transparent 65%);
+    animation:drift 22s ease-in-out infinite alternate;
+  }
+  [data-theme="light"] body::before{
+    background:
+      radial-gradient(900px 600px at 12% 8%,rgba(139,124,255,.30),transparent 65%),
+      radial-gradient(700px 500px at 88% 20%,rgba(95,213,184,.22),transparent 65%),
+      radial-gradient(600px 400px at 60% 92%,rgba(255,153,102,.18),transparent 65%);
+  }
+  @keyframes drift{0%{transform:translate(0,0) scale(1)} 100%{transform:translate(-2%,1.5%) scale(1.05)}}
+
+  nav{
+    position:sticky; top:0; z-index:100;
+    display:flex; align-items:center; gap:clamp(8px,2vw,16px);
+    padding:14px clamp(16px,3vw,32px);
+    background:color-mix(in oklab,var(--bg) 70%,transparent);
+    backdrop-filter:blur(20px) saturate(1.4);
+    -webkit-backdrop-filter:blur(20px) saturate(1.4);
+    border-bottom:1px solid var(--line);
+  }
+  .brand{display:flex; align-items:center; gap:10px; font-weight:800; font-size:18px; letter-spacing:-.02em}
+  .brand-mark{
+    width:32px; height:32px; border-radius:9px;
+    background:var(--grad-edu);
+    display:grid; place-items:center; color:#fff; font-size:18px;
+    box-shadow:0 4px 14px rgba(139,124,255,.45);
+  }
+  .nav-spacer{flex:1}
+  .nav-btn{
+    background:var(--panel); border:1px solid var(--line2); color:var(--text);
+    padding:8px 14px; border-radius:8px; cursor:pointer; font:inherit; font-size:13px; font-weight:500;
+    transition:transform .15s,border-color .15s;
+  }
+  .nav-btn:hover{border-color:var(--acc); transform:translateY(-1px)}
+
+  main{max-width:1100px; margin:0 auto; padding:clamp(20px,4vw,48px) clamp(16px,3vw,32px) 80px}
+
+  .hero{text-align:center; padding:clamp(24px,5vw,64px) 0 clamp(20px,4vw,40px)}
+  .eyebrow{
+    display:inline-block; padding:6px 14px; border-radius:99px;
+    background:color-mix(in oklab,var(--acc) 12%,transparent);
+    border:1px solid color-mix(in oklab,var(--acc) 30%,transparent);
+    color:var(--acc); font-family:"Geist Mono",ui-monospace,monospace; font-size:11px;
+    text-transform:uppercase; letter-spacing:.12em; margin-bottom:24px;
+  }
+  h1{font-size:clamp(32px,6vw,60px); margin:0 0 16px; font-weight:800; letter-spacing:-.035em; line-height:1.04}
+  h1 em{
+    font-family:"Playfair Display",serif; font-style:italic; font-weight:500;
+    background:var(--grad-edu); -webkit-background-clip:text; background-clip:text; color:transparent;
+  }
+  .sub{color:var(--muted); font-size:clamp(15px,1.5vw,17px); max-width:620px; margin:0 auto 24px; line-height:1.55}
+  .pills{display:flex; flex-wrap:wrap; gap:8px; justify-content:center}
+  .pill{font-family:"Geist Mono",monospace; font-size:11px; padding:5px 10px; border-radius:6px; background:var(--panel); border:1px solid var(--line); color:var(--muted)}
+
+  .card{background:var(--panel); border:1px solid var(--line); border-radius:20px; padding:clamp(20px,3vw,32px); box-shadow:var(--shadow)}
+  .input-card{margin:0 auto; max-width:860px}
+
+  /* Tabs */
+  .tabs{display:flex; gap:4px; padding:4px; background:var(--bg2); border-radius:12px; border:1px solid var(--line); margin-bottom:18px}
+  .tab{
+    flex:1; padding:11px 14px; border-radius:9px; cursor:pointer; font:inherit; font-size:13px; font-weight:600;
+    background:transparent; color:var(--muted); border:none; transition:all .15s;
+    display:inline-flex; align-items:center; justify-content:center; gap:8px;
+  }
+  .tab:hover{color:var(--text)}
+  .tab.on{background:var(--panel); color:var(--text); box-shadow:0 2px 8px rgba(0,0,0,.15)}
+
+  .tab-panel{display:none}
+  .tab-panel.on{display:block}
+
+  .field label{
+    display:block; font-family:"Geist Mono",monospace; font-size:11px; text-transform:uppercase;
+    letter-spacing:.1em; color:var(--muted); margin-bottom:8px;
+  }
+  .field input, .field textarea, .field select{
+    width:100%; background:var(--bg2); border:1px solid var(--line2); border-radius:11px;
+    padding:13px 16px; color:var(--text); font:inherit; font-size:15px; transition:border-color .15s, box-shadow .15s;
+    resize:vertical;
+  }
+  .field textarea{min-height:140px; line-height:1.5}
+  .field input:focus, .field textarea:focus, .field select:focus{outline:none; border-color:var(--acc); box-shadow:0 0 0 3px color-mix(in oklab,var(--acc) 22%,transparent)}
+
+  .row-2{display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:14px}
+  @media (max-width:560px){.row-2{grid-template-columns:1fr}}
+
+  .examples{display:flex; flex-wrap:wrap; gap:6px; margin-top:14px}
+  .example{
+    background:transparent; border:1px solid var(--line); border-radius:8px;
+    padding:6px 10px; cursor:pointer; font-size:12px; color:var(--muted); transition:all .15s;
+    font-family:"Geist Mono",monospace;
+  }
+  .example:hover{border-color:var(--acc); color:var(--acc)}
+
+  .cta{
+    width:100%; margin-top:18px; padding:16px 28px;
+    background:var(--grad-edu); color:#fff; border:none; border-radius:13px;
+    font:inherit; font-size:16px; font-weight:700; cursor:pointer;
+    transition:transform .15s, box-shadow .2s;
+    box-shadow:0 8px 24px color-mix(in oklab,var(--acc) 35%,transparent);
+  }
+  .cta:hover{transform:translateY(-2px); box-shadow:0 14px 32px color-mix(in oklab,var(--acc) 45%,transparent)}
+  .cta:disabled{opacity:.5; cursor:not-allowed; transform:none}
+
+  /* loading */
+  #loading{display:none; margin-top:24px; padding:18px; border-radius:14px; background:var(--panel2); border:1px solid var(--line)}
+  #loading.on{display:block}
+  .agent-step{display:flex; align-items:center; gap:12px; padding:9px 0; opacity:.4; transition:opacity .3s}
+  .agent-step.active{opacity:1}
+  .agent-step.done{opacity:.65}
+  .agent-step.done .step-num{background:var(--good); color:#0a0c12}
+  .step-num{
+    width:24px; height:24px; border-radius:7px; background:var(--bg2); border:1px solid var(--line2);
+    display:grid; place-items:center; font-family:"Geist Mono",monospace; font-size:11px; flex-shrink:0;
+  }
+  .agent-step.active .step-num{background:var(--acc); color:#fff; border-color:transparent; animation:pulse 1s ease-in-out infinite}
+  @keyframes pulse{0%,100%{box-shadow:0 0 0 0 color-mix(in oklab,var(--acc) 60%,transparent)} 50%{box-shadow:0 0 0 6px transparent}}
+  .step-label{font-size:13px}
+  .step-meta{font-family:"Geist Mono",monospace; font-size:11px; color:var(--muted); margin-left:auto}
+
+  #error{display:none; margin-top:18px; padding:14px 18px; border-radius:12px; background:color-mix(in oklab,#ff7a8a 14%,transparent); border:1px solid #ff7a8a; color:var(--text); font-size:14px}
+  #error.on{display:block}
+
+  /* Result library */
+  #library{display:none; margin-top:36px}
+  #library.on{display:block}
+  .lib-head{
+    display:flex; flex-wrap:wrap; align-items:flex-end; justify-content:space-between; gap:16px;
+    margin-bottom:24px;
+  }
+  .lib-title{font-size:clamp(22px,3vw,32px); font-weight:800; letter-spacing:-.02em; margin:0 0 6px}
+  .lib-meta{font-family:"Geist Mono",monospace; font-size:12px; color:var(--muted)}
+
+  .lib-actions{display:flex; gap:8px; flex-wrap:wrap}
+  .ico-btn{
+    background:var(--panel); border:1px solid var(--line2); color:var(--text);
+    padding:9px 14px; border-radius:9px; cursor:pointer; font:inherit; font-size:13px; font-weight:500;
+    display:inline-flex; align-items:center; gap:6px; transition:all .15s;
+  }
+  .ico-btn:hover{border-color:var(--acc); color:var(--acc)}
+  .ico-btn.primary{background:var(--grad-edu); color:#fff; border-color:transparent}
+  .ico-btn.primary:hover{transform:translateY(-1px); color:#fff}
+
+  .stats{display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-bottom:24px}
+  @media (max-width:640px){.stats{grid-template-columns:repeat(2,1fr)}}
+  .stat{padding:14px 16px; background:var(--panel); border:1px solid var(--line); border-radius:12px}
+  .stat-label{font-family:"Geist Mono",monospace; font-size:10px; text-transform:uppercase; letter-spacing:.1em; color:var(--muted); margin-bottom:4px}
+  .stat-val{font-size:22px; font-weight:700; font-variant-numeric:tabular-nums}
+  .stat-sub{font-size:11px; color:var(--muted); margin-top:2px}
+
+  .deck-list{display:grid; gap:14px}
+  .deck-card{
+    padding:18px 20px; background:var(--panel); border:1px solid var(--line); border-radius:14px;
+    transition:border-color .15s, transform .15s; cursor:pointer;
+  }
+  .deck-card:hover{border-color:var(--acc); transform:translateX(2px)}
+  .deck-head{display:flex; flex-wrap:wrap; align-items:flex-start; justify-content:space-between; gap:12px; margin-bottom:8px}
+  .deck-name{font-size:17px; font-weight:700; letter-spacing:-.01em; flex:1; min-width:200px}
+  .deck-info{font-family:"Geist Mono",monospace; font-size:11px; color:var(--muted); display:flex; gap:12px; flex-wrap:wrap}
+  .deck-info .due{color:var(--warm); font-weight:600}
+  .deck-actions{display:flex; gap:6px; margin-top:10px; padding-top:10px; border-top:1px dashed var(--line2)}
+  .deck-action{
+    background:transparent; border:1px solid var(--line2); color:var(--muted);
+    padding:6px 12px; border-radius:7px; cursor:pointer; font:inherit; font-size:12px; font-weight:500;
+    transition:all .15s;
+  }
+  .deck-action:hover{border-color:var(--acc); color:var(--acc)}
+  .deck-action.danger:hover{border-color:var(--bad); color:var(--bad)}
+  .deck-action.primary{background:var(--acc); color:#fff; border-color:transparent}
+  .deck-action.primary:hover{background:var(--acc2); color:#fff}
+
+  /* Study modal */
+  .modal-overlay{
+    position:fixed; inset:0; background:rgba(0,0,0,.7); backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px);
+    display:none; place-items:center; z-index:200; padding:16px;
+  }
+  .modal-overlay.on{display:grid}
+  .modal{
+    background:var(--panel); border:1px solid var(--line2); border-radius:18px;
+    width:100%; max-width:720px; max-height:92vh; overflow-y:auto;
+    padding:clamp(20px,3vw,32px); box-shadow:var(--shadow);
+    animation:modalIn .25s ease-out;
+  }
+  @keyframes modalIn{from{transform:translateY(20px); opacity:0} to{transform:translateY(0); opacity:1}}
+  .modal-head{display:flex; align-items:center; justify-content:space-between; margin-bottom:18px; gap:12px}
+  .modal-title{font-size:18px; font-weight:700; margin:0}
+  .modal-close{background:transparent; border:none; color:var(--muted); font-size:22px; cursor:pointer; padding:4px 8px; border-radius:6px}
+  .modal-close:hover{color:var(--text); background:var(--bg2)}
+
+  .study-progress{
+    height:6px; background:var(--bg2); border-radius:3px; overflow:hidden; margin-bottom:18px;
+  }
+  .study-progress-fill{height:100%; background:var(--grad-edu); transition:width .3s}
+  .study-meta{display:flex; gap:12px; flex-wrap:wrap; font-family:"Geist Mono",monospace; font-size:11px; color:var(--muted); margin-bottom:18px}
+  .study-meta strong{color:var(--text); font-weight:600}
+
+  .study-card{
+    background:var(--bg2); border:1px solid var(--line2); border-radius:14px;
+    padding:clamp(24px,4vw,40px); min-height:200px; display:flex; flex-direction:column; justify-content:center;
+    margin-bottom:18px; line-height:1.55;
+  }
+  .study-front, .study-back{font-size:clamp(16px,1.7vw,19px)}
+  .study-front{font-weight:600}
+  .study-back{margin-top:18px; padding-top:18px; border-top:1px dashed var(--line2); color:var(--muted); display:none}
+  .study-card.flipped .study-back{display:block; color:var(--text)}
+  .study-card.flipped .study-back-label{display:none}
+  .study-back-label{
+    margin-top:18px; padding-top:18px; border-top:1px dashed var(--line2);
+    font-family:"Geist Mono",monospace; font-size:12px; color:var(--acc); cursor:pointer; text-align:center;
+  }
+
+  .grade-row{display:grid; grid-template-columns:repeat(4,1fr); gap:8px}
+  @media (max-width:560px){.grade-row{grid-template-columns:repeat(2,1fr)}}
+  .grade-btn{
+    padding:14px 12px; border-radius:11px; cursor:pointer; font:inherit; font-weight:600; font-size:14px;
+    border:1px solid var(--line2); background:var(--panel); color:var(--text);
+    display:flex; flex-direction:column; gap:2px; transition:all .15s;
+  }
+  .grade-btn:hover{transform:translateY(-1px)}
+  .grade-btn .grade-key{font-family:"Geist Mono",monospace; font-size:10px; color:var(--muted)}
+  .grade-btn[data-grade="0"]{border-color:#ff7a8a44}
+  .grade-btn[data-grade="0"]:hover{border-color:var(--bad); background:color-mix(in oklab,var(--bad) 10%,var(--panel))}
+  .grade-btn[data-grade="3"]{border-color:#ffba5e44}
+  .grade-btn[data-grade="3"]:hover{border-color:var(--warm); background:color-mix(in oklab,var(--warm) 10%,var(--panel))}
+  .grade-btn[data-grade="4"]{border-color:#5fd58a44}
+  .grade-btn[data-grade="4"]:hover{border-color:var(--good); background:color-mix(in oklab,var(--good) 10%,var(--panel))}
+  .grade-btn[data-grade="5"]{border-color:#8b7cff44}
+  .grade-btn[data-grade="5"]:hover{border-color:var(--acc); background:color-mix(in oklab,var(--acc) 10%,var(--panel))}
+
+  .grade-interval{font-family:"Geist Mono",monospace; font-size:10px; color:var(--muted); font-weight:400}
+
+  .study-done{
+    text-align:center; padding:32px 16px;
+  }
+  .study-done h3{font-size:24px; margin:0 0 8px}
+  .study-done p{color:var(--muted); margin:0 0 18px}
+
+  footer{margin-top:64px; padding:28px 0; border-top:1px solid var(--line); text-align:center; color:var(--muted); font-size:13px}
+  footer a{color:var(--acc); text-decoration:none}
+  footer a:hover{text-decoration:underline}
+  .colophon{font-family:"Geist Mono",monospace; font-size:11px; text-transform:uppercase; letter-spacing:.12em; opacity:.7; margin-top:6px}
+
+  @media (prefers-reduced-motion:reduce){
+    *{animation-duration:.01ms !important; animation-iteration-count:1 !important; transition-duration:.05ms !important}
+    body::before{animation:none}
+  }
+</style>
+</head>
+<body>
+<nav>
+  <div class="brand"><div class="brand-mark">🃏</div><span>MimoCard</span></div>
+  <div class="nav-spacer"></div>
+  <button class="nav-btn" id="lang-btn">EN</button>
+  <button class="nav-btn" id="theme-btn" aria-label="Toggle theme">☾</button>
+</nav>
+
+<main>
+  <section class="hero">
+    <div class="eyebrow" data-i18n="eyebrow">AI Flashcard Generator · MiMo V2.5</div>
+    <h1 data-i18n-html="heroH1">Paste an article. Study <em>tomorrow's</em> exam tonight.</h1>
+    <p class="sub" data-i18n="heroSub">Five agents fetch the article, distill key concepts, write Q&A flashcards, schedule them with SM-2 spaced repetition, and turn passive reading into long-term memory you keep.</p>
+    <div class="pills">
+      <span class="pill" data-i18n="pill1">🆓 No API key</span>
+      <span class="pill" data-i18n="pill2">🧠 SM-2 SRS</span>
+      <span class="pill" data-i18n="pill3">📚 Anki export</span>
+      <span class="pill" data-i18n="pill4">💾 Saves locally</span>
+    </div>
+  </section>
+
+  <section class="card input-card">
+    <div class="tabs" role="tablist">
+      <button class="tab on" data-tab="url" role="tab"><span>🔗</span><span data-i18n="tabUrl">From URL</span></button>
+      <button class="tab" data-tab="text" role="tab"><span>📝</span><span data-i18n="tabText">From text</span></button>
+    </div>
+
+    <div class="tab-panel on" data-panel="url">
+      <div class="field">
+        <label for="url-input" data-i18n="lblUrl">Article URL</label>
+        <input id="url-input" type="url" placeholder="https://en.wikipedia.org/wiki/Spaced_repetition" autocomplete="off">
+        <div class="examples" id="examples"></div>
+      </div>
+    </div>
+
+    <div class="tab-panel" data-panel="text">
+      <div class="field">
+        <label for="text-input" data-i18n="lblText">Paste your text or notes</label>
+        <textarea id="text-input" placeholder="Paste tutorial content, lecture notes, book chapter..." rows="6"></textarea>
+      </div>
+    </div>
+
+    <div class="row-2">
+      <div class="field">
+        <label for="card-count" data-i18n="lblCount">Cards to generate</label>
+        <select id="card-count">
+          <option value="5" data-i18n="cnt5">5 cards · quick review</option>
+          <option value="10" selected data-i18n="cnt10">10 cards · standard</option>
+          <option value="15" data-i18n="cnt15">15 cards · deep study</option>
+          <option value="20" data-i18n="cnt20">20 cards · full mastery</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="card-style" data-i18n="lblStyle">Card style</label>
+        <select id="card-style">
+          <option value="qa" selected data-i18n="styQa">Q&A · standard</option>
+          <option value="cloze" data-i18n="styCloze">Cloze · fill-in-blank</option>
+          <option value="def" data-i18n="styDef">Definition · term/meaning</option>
+        </select>
+      </div>
+    </div>
+
+    <button class="cta" id="gen-btn" data-i18n="ctaGen">Generate flashcards →</button>
+
+    <div id="loading">
+      <div class="agent-step" data-step="1"><div class="step-num">1</div><div class="step-label" data-i18n="ag1">Fetcher agent · extracting content</div><div class="step-meta">r.jina.ai</div></div>
+      <div class="agent-step" data-step="2"><div class="step-num">2</div><div class="step-label" data-i18n="ag2">Concept agent · distilling key ideas</div><div class="step-meta">MiMo V2.5</div></div>
+      <div class="agent-step" data-step="3"><div class="step-num">3</div><div class="step-label" data-i18n="ag3">Card agent · writing Q&A pairs</div><div class="step-meta">MiMo V2.5</div></div>
+      <div class="agent-step" data-step="4"><div class="step-num">4</div><div class="step-label" data-i18n="ag4">Scheduler agent · seeding SM-2 intervals</div><div class="step-meta">SuperMemo-2</div></div>
+      <div class="agent-step" data-step="5"><div class="step-num">5</div><div class="step-label" data-i18n="ag5">Library agent · saving deck</div><div class="step-meta">localStorage</div></div>
+    </div>
+
+    <div id="error"></div>
+  </section>
+
+  <section id="library">
+    <div class="lib-head">
+      <div>
+        <h2 class="lib-title" data-i18n="libTitle">Your decks</h2>
+        <div class="lib-meta" id="libMeta"></div>
+      </div>
+      <div class="lib-actions">
+        <button class="ico-btn" id="study-due-btn">⚡ <span data-i18n="studyDue">Study due</span></button>
+        <button class="ico-btn" id="export-all-btn">📦 <span data-i18n="exportAll">Export all (Anki)</span></button>
+      </div>
+    </div>
+    <div class="stats" id="stats"></div>
+    <div class="deck-list" id="deckList"></div>
+  </section>
+
+  <footer>
+    <div data-i18n-html="footerLine">Made with 🔥 by <a href="https://github.com/gyoomei">@gyoomei</a> · Powered by <a href="https://www.xiaomimimo.com/">Xiaomi MiMo V2.5</a> via Pollinations · Reader by <a href="https://r.jina.ai">Jina AI</a></div>
+    <div class="colophon">MimoCard · Single HTML · Free · No API key · 100% client-side</div>
+  </footer>
+</main>
+
+<!-- Study modal -->
+<div class="modal-overlay" id="studyModal">
+  <div class="modal" id="modalInner">
+    <div class="modal-head">
+      <h3 class="modal-title" id="modalTitle">Studying</h3>
+      <button class="modal-close" id="modalClose">×</button>
+    </div>
+    <div class="study-progress"><div class="study-progress-fill" id="progFill" style="width:0%"></div></div>
+    <div class="study-meta" id="studyMeta"></div>
+    <div id="studyBody"></div>
+  </div>
+</div>
+
+<script src="app.js?v=1"></script>
+</body>
+</html>
