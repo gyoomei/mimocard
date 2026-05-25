@@ -289,26 +289,37 @@ function agentSchedule(cards) {
   return cards;
 }
 
-// ---------- SM-2 grade update ----------
-// q in {0,3,4,5}: again, hard, good, easy. (0,1,2 = lapse; 3-5 = pass)
+// SM-2 grade update.
+// q in {0,3,4,5}: again, hard, good, easy.
+// Standard SM-2 sets reps 0/1 → 1d/6d for ALL pass grades, but that makes Hard
+// and Easy preview the same interval, which is bad UX. We add a grade-aware
+// multiplier on the FIRST review: hard=0.5d, good=1d, easy=2.5d. From rep 2 on,
+// the standard EF-driven schedule takes over.
 function sm2(card, q) {
   const now = Date.now();
   const day = 24 * 60 * 60 * 1000;
   if (q < 3) {
-    // lapse
     card.reps = 0;
-    card.interval = 0; // re-show in this session
-    // EF unchanged on lapse beyond floor
+    card.interval = 0;
     card.ef = Math.max(1.3, card.ef - 0.2);
     card.dueAt = now + 10 * 60 * 1000; // 10 min later
   } else {
-    // SM-2: ef' = ef + (0.1 - (5-q) * (0.08 + (5-q) * 0.02))
     card.ef = Math.max(1.3, card.ef + (0.1 - (5 - q) * (0.08 + (5 - q) * 0.02)));
-    if (card.reps === 0) card.interval = 1;
-    else if (card.reps === 1) card.interval = 6;
-    else card.interval = Math.round(card.interval * card.ef);
+    let nextInterval;
+    if (card.reps === 0) {
+      // first pass: 0.5d hard, 1d good, 2.5d easy
+      nextInterval = q === 3 ? 0.5 : q === 4 ? 1 : 2.5;
+    } else if (card.reps === 1) {
+      // second pass: 3d hard, 6d good, 10d easy
+      nextInterval = q === 3 ? 3 : q === 4 ? 6 : 10;
+    } else {
+      // standard SM-2: previous × EF, with grade modifier
+      const mod = q === 3 ? 0.85 : q === 4 ? 1.0 : 1.3;
+      nextInterval = Math.round(card.interval * card.ef * mod * 10) / 10;
+    }
+    card.interval = nextInterval;
     card.reps += 1;
-    card.dueAt = now + card.interval * day;
+    card.dueAt = now + nextInterval * day;
   }
   card.lastReviewed = now;
   card.lastGrade = q;
@@ -330,15 +341,19 @@ function intervalLabelMs(ms) {
 }
 
 function previewInterval(card, q) {
-  // Calculate what the next interval WOULD be without mutating
-  const c = { ef: card.ef, reps: card.reps, interval: card.interval };
+  // Mirror the sm2() schedule without mutating
   if (q < 3) return 10 * 60 * 1000; // 10min
-  const ef = Math.max(1.3, c.ef + (0.1 - (5 - q) * (0.08 + (5 - q) * 0.02)));
-  let interval;
-  if (c.reps === 0) interval = 1;
-  else if (c.reps === 1) interval = 6;
-  else interval = Math.round(c.interval * ef);
-  return interval * 24 * 60 * 60 * 1000;
+  let days;
+  if (card.reps === 0) {
+    days = q === 3 ? 0.5 : q === 4 ? 1 : 2.5;
+  } else if (card.reps === 1) {
+    days = q === 3 ? 3 : q === 4 ? 6 : 10;
+  } else {
+    const ef = Math.max(1.3, card.ef + (0.1 - (5 - q) * (0.08 + (5 - q) * 0.02)));
+    const mod = q === 3 ? 0.85 : q === 4 ? 1.0 : 1.3;
+    days = Math.round(card.interval * ef * mod * 10) / 10;
+  }
+  return days * 24 * 60 * 60 * 1000;
 }
 
 // ---------- ORCHESTRATOR ----------
